@@ -11,7 +11,7 @@ import gsap from 'gsap';
 
 // Digital rain particle system
 const DigitalRain = () => {
-  const count = 3000;
+  const count = 1000; // 1/3 of original 3000
   const ref = useRef<Points>(null);
 
   // Create falling matrix-like particles
@@ -32,13 +32,13 @@ const DigitalRain = () => {
     canvas.width = 128;
     canvas.height = 128;
     const context = canvas.getContext('2d')!;
-    context.fillStyle = '#00ffff';
+    context.fillStyle = '#ffffff';
     context.font = '64px monospace';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
 
-    // Use matrix-like symbols
-    const symbols = ['0', '1', 'ア', 'ィ', 'イ', 'ゥ', 'ウ', '$', '#', '@'];
+    // Use "ae" symbols in upper and lower case
+    const symbols = ['æ', 'Æ', 'ae', 'AE', 'ÆE', 'æe'];
     context.fillText(symbols[Math.floor(Math.random() * symbols.length)], 64, 64);
 
     const texture = new THREE.Texture(canvas);
@@ -88,9 +88,9 @@ const DigitalRain = () => {
       </bufferGeometry>
       <pointsMaterial
         size={0.5}
-        color="#00ffff"
+        color="#ffffff"
         transparent
-        opacity={0.6}
+        opacity={0.3}
         alphaMap={symbolsMap}
         alphaTest={0.01}
         depthWrite={false}
@@ -99,83 +99,327 @@ const DigitalRain = () => {
   );
 };
 
-// Floating particle system
-const FloatingParticles = () => {
-  const count = 500;
-  const particlesRef = useRef<Points>(null);
+// Animated tesseract component (4D hypercube projection)
+const AnimatedTesseract = ({ position, scale, color, baseOpacity, rotationSpeed, fadeDelay }: {
+  position: [number, number, number];
+  scale: number;
+  color: THREE.Color;
+  baseOpacity: number;
+  rotationSpeed: number;
+  fadeDelay: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      const time = state.clock.getElapsedTime();
+      
+      // 4D rotation simulation - rotate around multiple axes at different speeds
+      groupRef.current.rotation.x = time * rotationSpeed;
+      groupRef.current.rotation.y = time * rotationSpeed * 0.7;
+      groupRef.current.rotation.z = time * rotationSpeed * 0.3;
+      
+      // Floating motion
+      groupRef.current.position.y = position[1] + Math.sin(time * 0.3 + position[0]) * 0.4;
+      groupRef.current.position.x = position[0] + Math.cos(time * 0.2 + position[2]) * 0.2;
+      
+      // Very slow fade in/out (8 second cycle)
+      const fadePhase = (time * 0.125 + fadeDelay) % 1; // 8 second cycle
+      const fadeOpacity = Math.sin(fadePhase * Math.PI) * 0.3 + 0.2; // 0.2 to 0.5 opacity range
+      
+      // Update all children materials
+      groupRef.current.children.forEach((child) => {
+        if (child instanceof THREE.LineSegments) {
+          const material = child.material as THREE.LineBasicMaterial;
+          material.opacity = baseOpacity * fadeOpacity;
+        }
+      });
+    }
+  });
 
+  // Create tesseract geometry using proper BufferGeometry
+  const geometry = useMemo(() => {
+    const positions = [];
+    
+    // Inner cube vertices
+    const innerCube = [
+      [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [-0.5, 0.5, -0.5],
+      [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5], [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5]
+    ];
+    
+    // Outer cube vertices (scaled and offset for 4D projection)
+    const outerScale = 0.6;
+    const outerCube = innerCube.map(([x, y, z]) => [
+      x * outerScale,
+      y * outerScale, 
+      z * outerScale
+    ]);
+    
+    // Inner cube edges
+    const cubeEdges = [
+      [0,1],[1,2],[2,3],[3,0], // bottom face
+      [4,5],[5,6],[6,7],[7,4], // top face
+      [0,4],[1,5],[2,6],[3,7]  // vertical edges
+    ];
+    
+    // Add inner cube lines
+    cubeEdges.forEach(([a, b]) => {
+      positions.push(...innerCube[a], ...innerCube[b]);
+    });
+    
+    // Add outer cube lines
+    cubeEdges.forEach(([a, b]) => {
+      positions.push(...outerCube[a], ...outerCube[b]);
+    });
+    
+    // Connect inner to outer (4D edges)
+    for (let i = 0; i < 8; i++) {
+      positions.push(...innerCube[i], ...outerCube[i]);
+    }
+    
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    return geometry;
+  }, []);
+
+  return (
+    <group ref={groupRef} position={position} scale={scale}>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial 
+          color={color} 
+          transparent 
+          opacity={baseOpacity}
+        />
+      </lineSegments>
+    </group>
+  );
+};
+
+// Triangular tesseract component (tetrahedral 4D structure)
+const TriangularTesseract = ({ position, scale, color, baseOpacity, rotationSpeed, fadeDelay }: {
+  position: [number, number, number];
+  scale: number;
+  color: THREE.Color;
+  baseOpacity: number;
+  rotationSpeed: number;
+  fadeDelay: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      const time = state.clock.getElapsedTime();
+      
+      // 4D rotation simulation - rotate around multiple axes at different speeds
+      groupRef.current.rotation.x = time * rotationSpeed * 1.3;
+      groupRef.current.rotation.y = time * rotationSpeed * 0.9;
+      groupRef.current.rotation.z = time * rotationSpeed * 0.6;
+      
+      // Floating motion
+      groupRef.current.position.y = position[1] + Math.sin(time * 0.4 + position[0]) * 0.3;
+      groupRef.current.position.x = position[0] + Math.cos(time * 0.3 + position[2]) * 0.2;
+      
+      // Very slow fade in/out (8 second cycle)
+      const fadePhase = (time * 0.125 + fadeDelay) % 1; // 8 second cycle
+      const fadeOpacity = Math.sin(fadePhase * Math.PI) * 0.4 + 0.3; // 0.3 to 0.7 opacity range
+      
+      // Update all children materials
+      groupRef.current.children.forEach((child) => {
+        if (child instanceof THREE.LineSegments) {
+          const material = child.material as THREE.LineBasicMaterial;
+          material.opacity = baseOpacity * fadeOpacity;
+        }
+      });
+    }
+  });
+
+  // Create triangular tesseract geometry (tetrahedral 4D structure)
+  const geometry = useMemo(() => {
+    const positions = [];
+    
+    // Inner tetrahedron vertices
+    const innerTetra = [
+      [0, 0.8, 0],           // top
+      [-0.7, -0.4, -0.4],    // bottom left
+      [0.7, -0.4, -0.4],     // bottom right  
+      [0, -0.4, 0.8]         // bottom back
+    ];
+    
+    // Outer tetrahedron vertices (scaled for 4D projection)
+    const outerScale = 0.5;
+    const outerTetra = innerTetra.map(([x, y, z]) => [
+      x * outerScale,
+      y * outerScale, 
+      z * outerScale
+    ]);
+    
+    // Tetrahedron edges
+    const tetraEdges = [
+      [0,1],[0,2],[0,3], // top to bottom vertices
+      [1,2],[2,3],[3,1]  // bottom triangle
+    ];
+    
+    // Add inner tetrahedron lines
+    tetraEdges.forEach(([a, b]) => {
+      positions.push(...innerTetra[a], ...innerTetra[b]);
+    });
+    
+    // Add outer tetrahedron lines
+    tetraEdges.forEach(([a, b]) => {
+      positions.push(...outerTetra[a], ...outerTetra[b]);
+    });
+    
+    // Connect inner to outer (4D edges)
+    for (let i = 0; i < 4; i++) {
+      positions.push(...innerTetra[i], ...outerTetra[i]);
+    }
+    
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    return geometry;
+  }, []);
+
+  return (
+    <group ref={groupRef} position={position} scale={scale}>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial 
+          color={color} 
+          transparent 
+          opacity={baseOpacity}
+        />
+      </lineSegments>
+    </group>
+  );
+};
+
+// Simple wireframe cube component (for the remaining 53%)
+const FloatingCube = ({ position, scale, color, opacity, rotationSpeed, fadeDelay }: {
+  position: [number, number, number];
+  scale: number;
+  color: THREE.Color;
+  opacity: number;
+  rotationSpeed: number;
+  fadeDelay: number;
+}) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      const time = state.clock.getElapsedTime();
+      // Rotate around multiple axes
+      meshRef.current.rotation.x = time * rotationSpeed;
+      meshRef.current.rotation.y = time * rotationSpeed * 0.7;
+      meshRef.current.rotation.z = time * rotationSpeed * 0.3;
+      
+      // Floating motion
+      meshRef.current.position.y = position[1] + Math.sin(time * 0.5 + position[0]) * 0.5;
+      
+      // Slow fade in/out
+      const fadePhase = (time * 0.1 + fadeDelay) % 1; // 10 second cycle
+      const fadeOpacity = Math.sin(fadePhase * Math.PI) * 0.3 + 0.4; // 0.4 to 0.7 opacity range
+      
+      const material = meshRef.current.material as THREE.MeshBasicMaterial;
+      material.opacity = opacity * fadeOpacity;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} position={position} scale={scale}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshBasicMaterial 
+        color={color} 
+        transparent 
+        opacity={opacity}
+        wireframe={true}
+      />
+    </mesh>
+  );
+};
+
+// Floating mixed geometries system (36% tesseracts, 11% triangular tesseracts, 53% cubes)
+const FloatingParticles = () => {
+  const count = 69;
+  
   const particles = useMemo(() => {
     const temp = [];
     for (let i = 0; i < count; i++) {
-      const x = (Math.random() - 0.5) * 30;
-      const y = (Math.random() - 0.5) * 30;
-      const z = (Math.random() - 0.5) * 30;
-      const speed = Math.random() * 0.02 + 0.01;
-      const size = Math.random() * 0.3 + 0.1;
-      temp.push({ x, y, z, speed, size });
+      const x = (Math.random() - 0.5) * 45;
+      const y = (Math.random() - 0.5) * 45;
+      const z = (Math.random() - 0.5) * 45;
+      const scale = Math.random() * 0.4 + 0.2;
+      const rotationSpeed = (Math.random() - 0.5) * 0.1;
+      // Random grayscale color
+      const grayValue = Math.random() * 0.7 + 0.3;
+      const color = new THREE.Color(grayValue, grayValue, grayValue);
+      const baseOpacity = Math.random() * 0.3 + 0.4;
+      const fadeDelay = Math.random() * 8;
+      
+      // Determine type based on percentages
+      let type: 'tesseract' | 'triangular' | 'cube';
+      const rand = Math.random();
+      if (rand < 0.36) {
+        type = 'tesseract'; // 36%
+      } else if (rand < 0.47) { // 36% + 11% = 47%
+        type = 'triangular'; // 11%
+      } else {
+        type = 'cube'; // 53%
+      }
+      
+      temp.push({ 
+        type,
+        position: [x, y, z] as [number, number, number], 
+        scale, 
+        color, 
+        baseOpacity, 
+        rotationSpeed,
+        fadeDelay
+      });
     }
     return temp;
   }, [count]);
 
-  useFrame((state) => {
-    if (!particlesRef.current) return;
-
-    const time = state.clock.getElapsedTime();
-    const positions = particlesRef.current.geometry.attributes.position.array as Float32Array;
-    const sizes = particlesRef.current.geometry.attributes.size.array as Float32Array;
-
-    for (let i = 0; i < count; i++) {
-      const i3 = i * 3;
-      // Create wave motion
-      positions[i3 + 1] = particles[i].y + Math.sin(time * particles[i].speed + i) * 1.5;
-      // Pulse sizes
-      sizes[i] = particles[i].size * (1 + Math.sin(time * 0.3 + i) * 0.2);
-    }
-
-    particlesRef.current.geometry.attributes.position.needsUpdate = true;
-    particlesRef.current.geometry.attributes.size.needsUpdate = true;
-  });
-
   return (
-    <points ref={particlesRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={count}
-          array={new Float32Array(count * 3)}
-          itemSize={3}
-          onUpdate={(self) => {
-            const positions = self.array as Float32Array;
-            particles.forEach(({ x, y, z }, i) => {
-              const i3 = i * 3;
-              positions[i3] = x;
-              positions[i3 + 1] = y;
-              positions[i3 + 2] = z;
-            });
-          }}
-        />
-        <bufferAttribute
-          attach="attributes-size"
-          count={count}
-          array={new Float32Array(count)}
-          itemSize={1}
-          onUpdate={(self) => {
-            const sizes = self.array as Float32Array;
-            particles.forEach(({ size }, i) => {
-              sizes[i] = size;
-            });
-          }}
-        />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.5}
-        color="#00ffff"
-        transparent
-        opacity={0.6}
-        depthWrite={false}
-        sizeAttenuation
-      />
-    </points>
+    <>
+      {particles.map((particle, i) => {
+        if (particle.type === 'tesseract') {
+          return (
+            <AnimatedTesseract
+              key={i}
+              position={particle.position}
+              scale={particle.scale}
+              color={particle.color}
+              baseOpacity={particle.baseOpacity}
+              rotationSpeed={particle.rotationSpeed}
+              fadeDelay={particle.fadeDelay}
+            />
+          );
+        } else if (particle.type === 'triangular') {
+          return (
+            <TriangularTesseract
+              key={i}
+              position={particle.position}
+              scale={particle.scale}
+              color={particle.color}
+              baseOpacity={particle.baseOpacity}
+              rotationSpeed={particle.rotationSpeed}
+              fadeDelay={particle.fadeDelay}
+            />
+          );
+        } else {
+          return (
+            <FloatingCube
+              key={i}
+              position={particle.position}
+              scale={particle.scale}
+              color={particle.color}
+              opacity={particle.baseOpacity}
+              rotationSpeed={particle.rotationSpeed}
+              fadeDelay={particle.fadeDelay}
+            />
+          );
+        }
+      })}
+    </>
   );
 };
 
@@ -240,7 +484,7 @@ const Letter = ({ position, char }: { position: [number, number, number]; char: 
   return (
     <mesh ref={ref}>
       <boxGeometry args={[1, 1, 0.2]} />
-      <meshStandardMaterial color="#00ffff" emissive="#003333" emissiveIntensity={0.5} />
+      <meshBasicMaterial color="#00ffff" wireframe={true} />
       <Text
         position={[0, 0, 0.15]}
         fontSize={0.8}
@@ -275,19 +519,29 @@ const MousePrompt = () => {
     return () => window.removeEventListener('mousemove', updateMousePosition);
   }, []);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera }) => {
     if (textRef.current && ringRef.current) {
-      // Convert normalized coordinates to world space
-      const x = mousePos.current[0] * viewport.width / 2;
-      const y = mousePos.current[1] * viewport.height / 2;
+      // Create a raycaster from the mouse position
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(
+        new THREE.Vector2(mousePos.current[0], mousePos.current[1]), 
+        camera
+      );
 
-      // Smoothly interpolate position
-      textRef.current.position.x += (x - textRef.current.position.x) * 0.1;
-      textRef.current.position.y += (y - textRef.current.position.y) * 0.1;
+      // Create a plane at the text's Z position to project the mouse onto
+      const textPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -4); // text is at z=4
+      const intersectionPoint = new THREE.Vector3();
+      raycaster.ray.intersectPlane(textPlane, intersectionPoint);
 
-      // Ring follows the text
-      ringRef.current.position.x = textRef.current.position.x;
-      ringRef.current.position.y = textRef.current.position.y;
+      if (intersectionPoint) {
+        // Smoothly interpolate position
+        textRef.current.position.x += (intersectionPoint.x - textRef.current.position.x) * 0.1;
+        textRef.current.position.y += (intersectionPoint.y - textRef.current.position.y) * 0.1;
+
+        // Ring follows the text
+        ringRef.current.position.x = textRef.current.position.x;
+        ringRef.current.position.y = textRef.current.position.y;
+      }
 
       // Pulse animation for the ring
       const pulse = Math.sin(clock.getElapsedTime() * 2) * 0.1 + 1;
@@ -299,8 +553,11 @@ const MousePrompt = () => {
     <>
       <mesh ref={textRef} position={[0, 0, 0]}>
         <Text
-          fontSize={0.3}
-          color="#00ffff"
+          fontSize={0.15}
+          fillOpacity={0}
+          strokeColor="#ffffff"
+          strokeWidth={0.005}
+          strokeOpacity={0.6}
           anchorX="center"
           anchorY="middle"
           font="https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf"
@@ -309,8 +566,8 @@ const MousePrompt = () => {
         </Text>
       </mesh>
       <mesh ref={ringRef} position={[0, 0, -0.1]}>
-        <ringGeometry args={[0.4, 0.5, 32]} />
-        <meshBasicMaterial color="#00ffff" transparent opacity={0.6} />
+        <ringGeometry args={[0.18, 0.22, 32]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
       </mesh>
     </>
   );
@@ -432,7 +689,7 @@ const FlippingLetter = ({
   );
 };
 
-// Complete text component - treat as whole word
+// Complete text component - treat as whole word - WORKING VERSION
 const FlippingText = ({ cameraAngle }: { cameraAngle: number }) => {
   const textRef = useRef<THREE.Group>(null);
   
@@ -467,78 +724,117 @@ const FlippingText = ({ cameraAngle }: { cameraAngle: number }) => {
 
   return (
     <group ref={textRef} position={[0, 0, 4]}>
-      {/* Main white text - complete word */}
+      
+      {/* Front text - outline only using stroke */}
       <Text
         fontSize={1.5}
+        fillOpacity={0}
+        strokeColor="#c0c0c0"
+        strokeWidth={0.01}
+        strokeOpacity={1}
+        anchorX="center"
+        anchorY="middle"
+        font="https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf"
+        letterSpacing={0.05}
+        fontWeight="bold"
+      >
+        aegntic.ai
+      </Text>
+      
+      {/* Back text - outline only at 0.11 depth */}
+      <Text
+        position={[0, 0, -0.11]}
+        fontSize={1.5}
+        fillOpacity={0.4}
         color="#ffffff"
+        strokeColor="#c0c0c0"
+        strokeWidth={0.02}
+        strokeOpacity={0.5}
         anchorX="center"
         anchorY="middle"
         font="https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf"
         letterSpacing={0.05}
+        fontWeight="bold"
       >
         aegntic.ai
       </Text>
-      
-      {/* Silver wireframe overlay */}
-      <Text
-        position={[0, 0, 0.001]}
-        fontSize={1.5}
-        color="#c0c0c0"
-        anchorX="center"
-        anchorY="middle"
-        font="https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf"
-        letterSpacing={0.05}
-        material={new THREE.MeshBasicMaterial({
-          color: "#c0c0c0",
-          wireframe: true
-        })}
-      >
-        aegntic.ai
-      </Text>
-      
-      {/* Depth layers */}
-      {[1, 2, 3, 4, 5].map((layer) => (
-        <group key={layer}>
-          <Text
-            position={[0, 0, -layer * 0.018]}
-            fontSize={1.5}
-            color="#ffffff"
-            anchorX="center"
-            anchorY="middle"
-            font="https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf"
-            letterSpacing={0.05}
-            material={new THREE.MeshStandardMaterial({
-              color: "#ffffff",
-              opacity: 0.7,
-              transparent: true
-            })}
-          >
-            aegntic.ai
-          </Text>
-          <Text
-            position={[0, 0, -layer * 0.018 + 0.001]}
-            fontSize={1.5}
-            color="#c0c0c0"
-            anchorX="center"
-            anchorY="middle"
-            font="https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf"
-            letterSpacing={0.05}
-            material={new THREE.MeshBasicMaterial({
-              color: "#c0c0c0",
-              wireframe: true,
-              opacity: 0.7,
-              transparent: true
-            })}
-          >
-            aegntic.ai
-          </Text>
-        </group>
-      ))}
     </group>
   );
 };
 
-// Background grid effect
+// Vertical grid wall/plane where the cursor moves
+const CursorWallGrid = () => {
+  const geometry = useMemo(() => {
+    const positions = [];
+    const size = 30;
+    const divisions = 15;
+    const step = size / divisions;
+    const halfSize = size / 2;
+
+    // Horizontal lines on the vertical wall (X direction, different Y levels)
+    for (let y = -halfSize; y <= halfSize; y += step) {
+      positions.push(-halfSize, y, 0);  // Left point
+      positions.push(halfSize, y, 0);   // Right point
+    }
+
+    // Vertical lines on the vertical wall (Y direction, different X levels)
+    for (let x = -halfSize; x <= halfSize; x += step) {
+      positions.push(x, -halfSize, 0);  // Bottom point
+      positions.push(x, halfSize, 0);   // Top point
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    return geometry;
+  }, []);
+
+  return (
+    <lineSegments position={[0, 0, 0]} geometry={geometry}>
+      <lineBasicMaterial color="#0080ff" opacity={0.3} transparent />
+    </lineSegments>
+  );
+};
+
+// Main click plane at y=0 with full visibility
+const ClickPlaneGrid = () => {
+  const geometry = useMemo(() => {
+    const positions = [];
+    const size = 50;
+    const divisions = 25;
+    const step = size / divisions;
+    const halfSize = size / 2;
+
+    // HORIZONTAL LINES at y=0 (X direction)
+    for (let i = 0; i <= divisions; i++) {
+      const z = -halfSize + (i * step);
+      
+      // Horizontal line from left to right (X direction)
+      positions.push(-halfSize, 0, z);  // Left point
+      positions.push(halfSize, 0, z);   // Right point
+    }
+
+    // HORIZONTAL LINES at y=0 (Z direction)
+    for (let i = 0; i <= divisions; i++) {
+      const x = -halfSize + (i * step);
+      
+      // Horizontal line from front to back (Z direction)
+      positions.push(x, 0, -halfSize);  // Front point
+      positions.push(x, 0, halfSize);   // Back point
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    return geometry;
+  }, []);
+
+  return (
+    <lineSegments position={[0, 0, 0]} geometry={geometry}>
+      <lineBasicMaterial color="#0080ff" opacity={0.3} transparent />
+    </lineSegments>
+  );
+};
+
+// Grid with static vertical lines
 const Grid = () => {
   const gridRef = useRef<THREE.Group>(null);
 
@@ -551,18 +847,20 @@ const Grid = () => {
 
   return (
     <group ref={gridRef}>
+      {/* Background grids */}
       <gridHelper
-        args={[50, 50, "#001111", "#004444"]}
+        args={[50, 50, "#000508", "#001020"]}
         position={[0, -10, 0]}
-        rotation={[Math.PI / 2, 0, 0]}
       />
       <gridHelper
-        args={[50, 50, "#001111", "#004444"]}
+        args={[50, 50, "#000508", "#001020"]}
         position={[0, 10, 0]}
-        rotation={[Math.PI / 2, 0, 0]}
       />
+      
+      {/* Base grid - full visibility */}
       <gridHelper
-        args={[50, 50, "#001111", "#004444"]}
+        args={[50, 50, "#000508", "#001020"]}
+        position={[0, 0, 0]}
       />
     </group>
   );
@@ -604,6 +902,8 @@ const Scene = ({ onClick, crumbleStarted }: { onClick: () => void; crumbleStarte
       <CameraAnimation active={cameraActive} textRef={textRef} />
 
       <Grid />
+      <CursorWallGrid />
+      <ClickPlaneGrid />
       <DigitalRain />
       <FloatingParticles />
 
