@@ -9,6 +9,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Start development server with Turbopack (exposed on all interfaces)
 bun dev
 
+# If dev server fails to load in browser, use background mode:
+# 1. Kill any existing processes: pkill -f "next dev"
+# 2. Start in background: bun dev > /dev/null 2>&1 &
+# 3. Wait 3 seconds then test: curl -I http://localhost:3000
+# 4. Should return HTTP/1.1 200 OK
+
 # Build for production (static export to /out directory)
 bun build
 
@@ -101,3 +107,36 @@ src/
 4. Leverage existing animations (GSAP, Framer Motion) for consistency
 5. Follow the established dark mode pattern using theme-context
 6. Form validation should use Zod schemas with React Hook Form
+
+## Troubleshooting
+
+### Development Server Not Loading
+**Issue**: `bun dev` starts but browser shows "This site can't be reached" or loading indefinitely.
+
+**Solution**:
+1. Kill existing processes: `pkill -f "next dev"`
+2. Start server in background: `bun dev > /dev/null 2>&1 &`
+3. Wait 3 seconds: `sleep 3`
+4. Test connectivity: `curl -I http://localhost:3000`
+5. Should return `HTTP/1.1 200 OK`
+6. Open browser to `http://localhost:3000`
+
+**Root Cause**: Next.js development server sometimes fails to bind properly to localhost in certain environments. Running in background mode resolves this.
+
+### Static Export Issues
+**Issue**: Development server won't start due to `output: 'export'` in next.config.js.
+
+**Solution**: The `output: 'export'` line should be commented out during development:
+```javascript
+// output: 'export', // Commented out for development
+```
+
+### 3D Text Animation Status
+**Current Working Features**:
+- ✅ "aegntic.ai" text with camera tracking rotation
+- ✅ Front-facing constraint (±89 degrees) - never shows back
+- ✅ Text positioned at Z: +4 to prevent vanishing
+- ✅ Pure white text with silver wireframe overlay
+- ✅ 9px depth with 70% opacity layers
+- ✅ Smooth rotation without glitches
+- ✅ Checkpoint backup: `AsciiIntro_CHECKPOINT.tsx`
